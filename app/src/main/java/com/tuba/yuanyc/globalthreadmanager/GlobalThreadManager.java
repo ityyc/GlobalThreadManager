@@ -1,9 +1,12 @@
 package com.tuba.yuanyc.globalthreadmanager;
 
+import android.support.annotation.NonNull;
 import android.text.TextUtils;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>Author ：yuanyc </p>
@@ -78,26 +81,47 @@ public class GlobalThreadManager {
      * @param threadName 自定义的线程名字
      * @param runnable   要执行的runnable
      */
-    public void execute(String threadName, Runnable runnable) {
+    public void execute(@NonNull String threadName, @NonNull Runnable runnable) {
+        if (type == Configs.SCHEDULED_THREAD_POOL) {
+            throw new RuntimeException("不适用于执行定时周期任务的线程池");
+        }
         //包装runnable
         RunnableWrapper runnableWrapper = new RunnableWrapper(threadName, runnable);
         switch (type) {
             case Configs.CACHE_THREAD_POOL:
                 executorService = Executors.newCachedThreadPool();
+                executorService.execute(runnableWrapper);
                 break;
             case Configs.FIXED_THREAD_POOL:
                 executorService = Executors.newFixedThreadPool(checkThreadNumber(threadNumber) ? Configs.THREAD_NUMBER : threadNumber);
-                break;
-            case Configs.SCHEDULED_THREAD_POOL:
-                executorService = Executors.newScheduledThreadPool(checkThreadNumber(threadNumber) ? Configs.THREAD_NUMBER : threadNumber);
+                executorService.execute(runnableWrapper);
                 break;
             case Configs.SINGLE_THREAD_POOL:
                 executorService = Executors.newSingleThreadExecutor();
+                executorService.execute(runnableWrapper);
                 break;
             default:
                 executorService = Executors.newCachedThreadPool();
+                executorService.execute(runnableWrapper);
         }
-        executorService.execute(runnableWrapper);
+    }
+
+    /**
+     * 外部调用接口，适用于
+     * <p>{@link Configs#SCHEDULED_THREAD_POOL}</p>
+     * @param threadName 自定义的线程名字
+     * @param runnable 要执行的runnable
+     * @param delay 延迟的时间
+     * @param unit 时间单位
+     */
+    public void schedule(@NonNull String threadName, @NonNull Runnable runnable, long delay, TimeUnit unit) {
+        if (type != Configs.SCHEDULED_THREAD_POOL) {
+            throw new RuntimeException("只适用于执行定时周期任务的线程池");
+        }
+        //包装runnable
+        RunnableWrapper runnableWrapper = new RunnableWrapper(threadName, runnable);
+        ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(checkThreadNumber(threadNumber) ? Configs.THREAD_NUMBER : threadNumber);
+        scheduledExecutorService.schedule(runnableWrapper, delay, unit);
     }
 
     /**
@@ -121,7 +145,7 @@ public class GlobalThreadManager {
 
         private void setThreadName(String threadName) {
             if (TextUtils.isEmpty(threadName)) {
-                throw new RuntimeException("未给Thread线程设置name");
+                throw new RuntimeException("必须给Thread线程设置name");
             }
             System.out.println("未设置自定义线程名称之前当前线程的名称： " + Thread.currentThread().getName());
             Thread.currentThread().setName(threadName);

@@ -2,8 +2,8 @@ package com.tuba.yuanyc.globalthreadmanager;
 
 /**
  * Author ：yuanyc
- * Time ：2017/4/26
- * Description ：
+ * Time ：2017/3/4
+ * Description ：静态常量类
  */
 
 public class Configs {
@@ -21,6 +21,7 @@ public class Configs {
     public static final int SCHEDULED_THREAD_POOL = 20012;
     /**
      * 创建一个单线程化的线程池，它只会用唯一的工作线程来执行任务，保证所有任务按照指定顺序(FIFO, LIFO, 优先级)执行
+     * 使用场景：多个线程读写同一个文件，可考虑使用此种线程池保证安全
      */
     public static final int SINGLE_THREAD_POOL = 20013;
     /**
