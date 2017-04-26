@@ -6,13 +6,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Author ：yuanyc
- * Time ：2017/3/4
- * Description ：线程统一管理类
- * 使用步骤：
- * 第一步：通过GlobalThreadManager.getInstance获取通过GlobalThreadManager实例
- * 第二步：通过获取的实例调用setType设置要使用的线程池类型，不设置默认使用缓存线程池
- * 第三步：调用execute方法，需传入当前线程的名字（你自定义的名字），要执行的runnable
+ * <p>Author ：yuanyc </p>
+ * <p>Time ：2017/3/4</p>
+ * <p>Description ：线程统一管理类</p>
+ * <p>使用步骤：</p>
+ * <p>第一步：通过GlobalThreadManager.getInstance获取通过GlobalThreadManager实例</p>
+ * <p>第二步：通过获取的实例调用setType设置要使用的线程池类型，不设置默认使用缓存线程池</p>
+ * <p>第三步：调用execute方法，需传入当前线程的名字（你自定义的名字），要执行的runnable</p>
+ * <p>特殊说明：如果创建的是一个守护线程，比如说使用的是缓存线程池，如果在池中已经创建了一个守护线程，当线程复用的时候，其他线程复用这个守护线程会导致本来是一个用户线程，因为复用变成了一个守护线程，所以在创建使用守护线程的时候，请不要使用此类(守护线程在android中使用没有多大的意义，建议不要将一个线程设置为守护线程)</p>
  */
 
 public class GlobalThreadManager {
@@ -24,14 +25,31 @@ public class GlobalThreadManager {
      * 选择的线程池类型
      */
     private int type;
+    /**
+     * 线程的个数
+     */
+    private int threadNumber;
+
+    /**
+     * 设置线程的个数
+     * <p>适用于</p>
+     * <p>{@link Configs#FIXED_THREAD_POOL}</p>
+     * <p>{@link Configs#SCHEDULED_THREAD_POOL}</p>
+     *
+     * @param threadNumber 线程的个数
+     */
+    public void setThreadNumber(int threadNumber) {
+        this.threadNumber = threadNumber;
+    }
 
     /**
      * 设置线程池类型
+     *
      * @param type 类型
-     * @see Configs#CACHE_THREAD_POOL
-     * @see Configs#FIXED_THREAD_POOL
-     * @see Configs#SCHEDULED_THREAD_POOL
-     * @see Configs#SINGLE_THREAD_POOL
+     *             <p>{@link Configs#CACHE_THREAD_POOL}</p>
+     *             <p>{@link Configs#FIXED_THREAD_POOL}</p>
+     *             <p>{@link Configs#SCHEDULED_THREAD_POOL}</p>
+     *             <p>{@link Configs#SINGLE_THREAD_POOL}</p>
      */
     public void setType(int type) {
         this.type = type;
@@ -43,6 +61,7 @@ public class GlobalThreadManager {
 
     /**
      * 获取GlobalThreadManager实例
+     *
      * @return 实例
      */
     public static GlobalThreadManager getInstance() {
@@ -55,20 +74,22 @@ public class GlobalThreadManager {
 
     /**
      * 外部调用执行
+     *
      * @param threadName 自定义的线程名字
-     * @param runnable 要执行的runnable
+     * @param runnable   要执行的runnable
      */
     public void execute(String threadName, Runnable runnable) {
+        //包装runnable
         RunnableWrapper runnableWrapper = new RunnableWrapper(threadName, runnable);
-        switch (type){
+        switch (type) {
             case Configs.CACHE_THREAD_POOL:
                 executorService = Executors.newCachedThreadPool();
                 break;
             case Configs.FIXED_THREAD_POOL:
-                executorService = Executors.newFixedThreadPool(10);
+                executorService = Executors.newFixedThreadPool(checkThreadNumber(threadNumber) ? Configs.THREAD_NUMBER : threadNumber);
                 break;
             case Configs.SCHEDULED_THREAD_POOL:
-                executorService = Executors.newScheduledThreadPool(10);
+                executorService = Executors.newScheduledThreadPool(checkThreadNumber(threadNumber) ? Configs.THREAD_NUMBER : threadNumber);
                 break;
             case Configs.SINGLE_THREAD_POOL:
                 executorService = Executors.newSingleThreadExecutor();
@@ -94,6 +115,7 @@ public class GlobalThreadManager {
         @Override
         public void run() {
             runnable.run();
+            //在调用run方法之后调用
             setThreadName(name);
         }
 
@@ -101,9 +123,13 @@ public class GlobalThreadManager {
             if (TextUtils.isEmpty(threadName)) {
                 throw new RuntimeException("未给Thread线程设置name");
             }
-            System.out.println("未设置自定义线程名称之前当前线程的名称： "+Thread.currentThread().getName());
+            System.out.println("未设置自定义线程名称之前当前线程的名称： " + Thread.currentThread().getName());
             Thread.currentThread().setName(threadName);
-            System.out.println("设置自定义线程名称之后当前线程的名称： "+Thread.currentThread().getName());
+            System.out.println("设置自定义线程名称之后当前线程的名称： " + Thread.currentThread().getName());
         }
+    }
+
+    private boolean checkThreadNumber(int number) {
+        return number == 0;
     }
 }
