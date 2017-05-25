@@ -43,11 +43,13 @@ public class GlobalThreadManager {
 
     /**
      * 外部调用执行
+     *
      * @param threadName 自定义的线程的名字
      * @param runnable
      */
     public void execute(String threadName, Runnable runnable) {
         RunnableWrapper runnableWrapper = new RunnableWrapper(threadName, runnable);
+        //如果外界没有创建自定义的线程池，使用默认值创建默认的线程池
         if (null == threadPoolExecutor) {
             ThreadPoolSetting threadPoolSetting = new ThreadPoolSetting();
             threadPoolSetting.build();
@@ -164,6 +166,12 @@ public class GlobalThreadManager {
          * 设置阻塞的队列
          *
          * @param blockingQueueEnum
+         * @see BlockingQueueEnum#ARRAY_BLOCKING_QUEUE
+         * @see BlockingQueueEnum#DELAY_QUEUE
+         * @see BlockingQueueEnum#LINKED_BLOCKING_DEQUE
+         * @see BlockingQueueEnum#LINKED_BLOCKING_QUEUE
+         * @see BlockingQueueEnum#PRIORITY_BLOCKING_QUEUE
+         * @see BlockingQueueEnum#SYNCHRONOUS_QUEUE
          */
         public void setBlockingQueueEnum(BlockingQueueEnum blockingQueueEnum) {
             this.blockingQueueEnum = blockingQueueEnum;
@@ -177,12 +185,12 @@ public class GlobalThreadManager {
             TimeUnit timeUnit = checkTimeUnit(timeUnitEnum);
             BlockingQueue blockingQueue = checkBlockingQueue(blockingQueueEnum);
             threadPoolExecutor = new ThreadPoolExecutor(corePoolSize, maximumPoolSize, keepAliveTime, timeUnit, blockingQueue);
-            System.out.println("核心线程数corePoolSize = "+corePoolSize);
-            System.out.println("最大线程数maximumPoolSize = "+maximumPoolSize);
-            System.out.println("阻塞队列大小blockSize = "+blockSize);
-            System.out.println("时间单位timeUnitEnum = "+timeUnitEnum);
-            System.out.println("空闲线程超时时间keepAliveTime = "+keepAliveTime);
-            System.out.println("当前选中的阻塞队列blockingQueueEnum = "+blockingQueueEnum);
+            System.out.println("核心线程数corePoolSize = " + corePoolSize);
+            System.out.println("最大线程数maximumPoolSize = " + maximumPoolSize);
+            System.out.println("阻塞队列大小blockSize = " + blockSize);
+            System.out.println("时间单位timeUnitEnum = " + timeUnitEnum);
+            System.out.println("空闲线程超时时间keepAliveTime = " + keepAliveTime);
+            System.out.println("当前选中的阻塞队列blockingQueueEnum = " + blockingQueueEnum);
         }
 
         private TimeUnit checkTimeUnit(TimeUnitEnum timeUnitEnum) {
@@ -210,10 +218,10 @@ public class GlobalThreadManager {
                     blockingQueue = new DelayQueue();
                     break;
                 case LINKED_BLOCKING_DEQUE:
-                    blockingQueue = new LinkedBlockingDeque();
+                    blockingQueue = new LinkedBlockingDeque(blockSize);
                     break;
                 case LINKED_BLOCKING_QUEUE:
-                    blockingQueue = new LinkedBlockingQueue();
+                    blockingQueue = new LinkedBlockingQueue(blockSize);
                     break;
                 case PRIORITY_BLOCKING_QUEUE:
                     blockingQueue = new PriorityBlockingQueue();
@@ -232,14 +240,46 @@ public class GlobalThreadManager {
         /**
          * 毫秒
          */
-        MILLISECONDS, /**
+        MILLISECONDS,
+
+        /**
          * 秒
          */
-        SECONDS;
+        SECONDS
     }
 
     public enum BlockingQueueEnum {
-        ARRAY_BLOCKING_QUEUE, DELAY_QUEUE, LINKED_BLOCKING_DEQUE, LINKED_BLOCKING_QUEUE, PRIORITY_BLOCKING_QUEUE, SYNCHRONOUS_QUEUE;
+
+        /**
+         * <p>由数组支持的有界阻塞队列固定大小的数组在其中保持生产者插入的元素和使用者提取的元素。</p>
+         * <p>一旦创建了这样的缓存区，就不能再增加其容量。试图向已满队列中放入元素会导致操作受阻塞；试图从空队列中提取元素将导致类似阻塞</p>
+         */
+        ARRAY_BLOCKING_QUEUE,
+
+        /**
+         * Delayed 元素的一个无界阻塞队列，只有在延迟期满时才能从中提取元素
+         */
+        DELAY_QUEUE,
+
+        /**
+         * 阻塞双端队列,如果未指定容量，那么容量将等于 Integer.MAX_VALUE
+         */
+        LINKED_BLOCKING_DEQUE,
+
+        /**
+         * 如果未指定容量，则它等于 Integer.MAX_VALUE。除非插入节点会使队列超出容量，否则每次插入后会动态地创建链接节点。
+         */
+        LINKED_BLOCKING_QUEUE,
+
+        /**
+         * 一个无界阻塞队列,资源被耗尽时试图执行 add 操作也将失败（导致 OutOfMemoryError）
+         */
+        PRIORITY_BLOCKING_QUEUE,
+
+        /**
+         * 同步阻塞队列，其中每个插入操作必须等待另一个线程的对应移除操作
+         */
+        SYNCHRONOUS_QUEUE
     }
 
 
