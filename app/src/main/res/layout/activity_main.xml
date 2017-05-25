@@ -27,4 +27,9 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="单一线程池"/>
+    <Button
+        android:id="@+id/button5"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="自定义程池"/>
 </LinearLayout>

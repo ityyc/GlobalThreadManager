@@ -1,127 +1,58 @@
 package com.tuba.yuanyc.globalthreadmanager;
 
-import android.support.annotation.NonNull;
 import android.text.TextUtils;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.DelayQueue;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * <p>Author ：yuanyc </p>
- * <p>Time ：2017/3/4</p>
- * <p>Description ：线程统一管理类</p>
- * <p>使用步骤：</p>
- * <p>第一步：通过GlobalThreadManager.getInstance获取通过GlobalThreadManager实例</p>
- * <p>第二步：通过获取的实例调用setType设置要使用的线程池类型，不设置默认使用缓存线程池</p>
- * <p>第三步：调用execute方法，需传入当前线程的名字（你自定义的名字），要执行的runnable</p>
- * <p>特殊说明：如果创建的是一个守护线程，比如说使用的是缓存线程池，如果在池中已经创建了一个守护线程，当线程复用的时候，其他线程复用这个守护线程会导致本来是一个用户线程，因为复用变成了一个守护线程，所以在创建使用守护线程的时候，请不要使用此类(守护线程在android中使用没有多大的意义，建议不要将一个线程设置为守护线程)</p>
+ * Author ：yuanyc
+ * Time ：2017/5/25
+ * Description ：线程统一管理类
+ * 对GlobalSimpleThreadManager进行的优化，此处使用ThreadPoolExecutor让使用者自己去创建自己想要的线程池
  */
 
 public class GlobalThreadManager {
     /**
-     * 线程池
+     * 自定义的线程池
      */
-    private ExecutorService executorService;
-    /**
-     * 选择的线程池类型
-     */
-    private int type;
-    /**
-     * 线程的个数
-     */
-    private int threadNumber;
-
-    /**
-     * 设置线程的个数
-     * <p>适用于</p>
-     * <p>{@link Configs#FIXED_THREAD_POOL}</p>
-     * <p>{@link Configs#SCHEDULED_THREAD_POOL}</p>
-     *
-     * @param threadNumber 线程的个数
-     */
-    public void setThreadNumber(int threadNumber) {
-        this.threadNumber = threadNumber;
-    }
-
-    /**
-     * 设置线程池类型
-     *
-     * @param type 类型
-     *             <p>{@link Configs#CACHE_THREAD_POOL}</p>
-     *             <p>{@link Configs#FIXED_THREAD_POOL}</p>
-     *             <p>{@link Configs#SCHEDULED_THREAD_POOL}</p>
-     *             <p>{@link Configs#SINGLE_THREAD_POOL}</p>
-     */
-    public void setType(int type) {
-        this.type = type;
-    }
+    private static ThreadPoolExecutor threadPoolExecutor;
 
     private GlobalThreadManager() {
+    }
 
+    private static class InstanceHolder {
+        private static final GlobalThreadManager instace = new GlobalThreadManager();
     }
 
     /**
-     * 获取GlobalThreadManager实例
+     * 获取GlobalThreadManager实例（采用静态内部实现延迟加载实例）
      *
-     * @return 实例
+     * @return
      */
-    public static GlobalThreadManager getInstance() {
-        return InstanceHolder.instance;
-    }
-
-    private static final class InstanceHolder {
-        public static final GlobalThreadManager instance = new GlobalThreadManager();
+    public static GlobalThreadManager getInstace() {
+        return InstanceHolder.instace;
     }
 
     /**
      * 外部调用执行
-     *
-     * @param threadName 自定义的线程名字
-     * @param runnable   要执行的runnable
+     * @param threadName 自定义的线程的名字
+     * @param runnable
      */
-    public void execute(@NonNull String threadName, @NonNull Runnable runnable) {
-        if (type == Configs.SCHEDULED_THREAD_POOL) {
-            throw new RuntimeException("不适用于执行定时周期任务的线程池");
-        }
-        //包装runnable
+    public void execute(String threadName, Runnable runnable) {
         RunnableWrapper runnableWrapper = new RunnableWrapper(threadName, runnable);
-        switch (type) {
-            case Configs.CACHE_THREAD_POOL:
-                executorService = Executors.newCachedThreadPool();
-                executorService.execute(runnableWrapper);
-                break;
-            case Configs.FIXED_THREAD_POOL:
-                executorService = Executors.newFixedThreadPool(checkThreadNumber(threadNumber) ? Configs.THREAD_NUMBER : threadNumber);
-                executorService.execute(runnableWrapper);
-                break;
-            case Configs.SINGLE_THREAD_POOL:
-                executorService = Executors.newSingleThreadExecutor();
-                executorService.execute(runnableWrapper);
-                break;
-            default:
-                executorService = Executors.newCachedThreadPool();
-                executorService.execute(runnableWrapper);
+        if (null == threadPoolExecutor) {
+            ThreadPoolSetting threadPoolSetting = new ThreadPoolSetting();
+            threadPoolSetting.build();
         }
-    }
-
-    /**
-     * 外部调用接口，适用于
-     * <p>{@link Configs#SCHEDULED_THREAD_POOL}</p>
-     * @param threadName 自定义的线程名字
-     * @param runnable 要执行的runnable
-     * @param delay 延迟的时间
-     * @param unit 时间单位
-     */
-    public void schedule(@NonNull String threadName, @NonNull Runnable runnable, long delay, TimeUnit unit) {
-        if (type != Configs.SCHEDULED_THREAD_POOL) {
-            throw new RuntimeException("只适用于执行定时周期任务的线程池");
-        }
-        //包装runnable
-        RunnableWrapper runnableWrapper = new RunnableWrapper(threadName, runnable);
-        ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(checkThreadNumber(threadNumber) ? Configs.THREAD_NUMBER : threadNumber);
-        scheduledExecutorService.schedule(runnableWrapper, delay, unit);
+        threadPoolExecutor.execute(runnableWrapper);
     }
 
     /**
@@ -147,13 +78,169 @@ public class GlobalThreadManager {
             if (TextUtils.isEmpty(threadName)) {
                 throw new RuntimeException("必须给Thread线程设置name");
             }
-            System.out.println("未设置自定义线程名称之前当前线程的名称： " + Thread.currentThread().getName());
             Thread.currentThread().setName(threadName);
-            System.out.println("设置自定义线程名称之后当前线程的名称： " + Thread.currentThread().getName());
+            System.out.println("前线程的名称： " + Thread.currentThread().getName());
         }
     }
 
-    private boolean checkThreadNumber(int number) {
-        return number == 0;
+
+    public static class ThreadPoolSetting {
+        /**
+         * 核心线程数
+         */
+        private int corePoolSize = Configs.THREAD_CORE_NUMBER;
+        /**
+         * 最大线程数
+         */
+        private int maximumPoolSize = Configs.THREAD_MAX_NUMBER;
+        /**
+         * 阻塞队列的大小
+         */
+        private int blockSize = Configs.THREAD_BLOCK_SIZE;
+        /**
+         * 空闲线程超时时间
+         */
+        private long keepAliveTime = Configs.THREAD_IDLE_TIME_OUT;
+        /**
+         * 时间单位
+         * 默认的单位：毫秒
+         */
+        private TimeUnitEnum timeUnitEnum = TimeUnitEnum.MILLISECONDS;
+        /**
+         * 阻塞队列
+         * 默认：ArrayBlockingQueue（有界队列）
+         */
+        private BlockingQueueEnum blockingQueueEnum = BlockingQueueEnum.ARRAY_BLOCKING_QUEUE;
+
+        /**
+         * 设置线程池核心线程数量
+         *
+         * @param corePoolSize
+         */
+        public void setCorePoolSize(int corePoolSize) {
+            this.corePoolSize = corePoolSize;
+        }
+
+        /**
+         * 设置线程池最大线程数量
+         *
+         * @param maximumPoolSize
+         */
+        public void setMaximumPoolSize(int maximumPoolSize) {
+            this.maximumPoolSize = maximumPoolSize;
+        }
+
+        /**
+         * 设置阻塞队列的大小
+         *
+         * @param blockSize
+         */
+        public void setBlockSize(int blockSize) {
+            this.blockSize = blockSize;
+        }
+
+        /**
+         * 设置空闲线程超时时间
+         *
+         * @param keepAliveTime
+         */
+        public void setKeepAliveTime(long keepAliveTime) {
+            this.keepAliveTime = keepAliveTime;
+        }
+
+
+        /**
+         * 设置时间单位
+         *
+         * @param timeUnitEnum 单位：默认的单位是毫秒
+         * @see TimeUnitEnum#MILLISECONDS
+         * @see TimeUnitEnum#SECONDS
+         */
+        public void setTimeUnitEnum(TimeUnitEnum timeUnitEnum) {
+            this.timeUnitEnum = timeUnitEnum;
+        }
+
+        /**
+         * 设置阻塞的队列
+         *
+         * @param blockingQueueEnum
+         */
+        public void setBlockingQueueEnum(BlockingQueueEnum blockingQueueEnum) {
+            this.blockingQueueEnum = blockingQueueEnum;
+        }
+
+        public ThreadPoolSetting() {
+
+        }
+
+        public void build() {
+            TimeUnit timeUnit = checkTimeUnit(timeUnitEnum);
+            BlockingQueue blockingQueue = checkBlockingQueue(blockingQueueEnum);
+            threadPoolExecutor = new ThreadPoolExecutor(corePoolSize, maximumPoolSize, keepAliveTime, timeUnit, blockingQueue);
+            System.out.println("核心线程数corePoolSize = "+corePoolSize);
+            System.out.println("最大线程数maximumPoolSize = "+maximumPoolSize);
+            System.out.println("阻塞队列大小blockSize = "+blockSize);
+            System.out.println("时间单位timeUnitEnum = "+timeUnitEnum);
+            System.out.println("空闲线程超时时间keepAliveTime = "+keepAliveTime);
+            System.out.println("当前选中的阻塞队列blockingQueueEnum = "+blockingQueueEnum);
+        }
+
+        private TimeUnit checkTimeUnit(TimeUnitEnum timeUnitEnum) {
+            TimeUnit timeUnit;
+            switch (timeUnitEnum) {
+                case MILLISECONDS:
+                    timeUnit = TimeUnit.MILLISECONDS;
+                    break;
+                case SECONDS:
+                    timeUnit = TimeUnit.SECONDS;
+                    break;
+                default:
+                    timeUnit = TimeUnit.MILLISECONDS;
+            }
+            return timeUnit;
+        }
+
+        private BlockingQueue checkBlockingQueue(BlockingQueueEnum blockingQueueEnum) {
+            BlockingQueue blockingQueue;
+            switch (blockingQueueEnum) {
+                case ARRAY_BLOCKING_QUEUE:
+                    blockingQueue = new ArrayBlockingQueue(blockSize);
+                    break;
+                case DELAY_QUEUE:
+                    blockingQueue = new DelayQueue();
+                    break;
+                case LINKED_BLOCKING_DEQUE:
+                    blockingQueue = new LinkedBlockingDeque();
+                    break;
+                case LINKED_BLOCKING_QUEUE:
+                    blockingQueue = new LinkedBlockingQueue();
+                    break;
+                case PRIORITY_BLOCKING_QUEUE:
+                    blockingQueue = new PriorityBlockingQueue();
+                    break;
+                case SYNCHRONOUS_QUEUE:
+                    blockingQueue = new SynchronousQueue();
+                    break;
+                default:
+                    blockingQueue = new ArrayBlockingQueue(blockSize);
+            }
+            return blockingQueue;
+        }
     }
+
+    public enum TimeUnitEnum {
+        /**
+         * 毫秒
+         */
+        MILLISECONDS, /**
+         * 秒
+         */
+        SECONDS;
+    }
+
+    public enum BlockingQueueEnum {
+        ARRAY_BLOCKING_QUEUE, DELAY_QUEUE, LINKED_BLOCKING_DEQUE, LINKED_BLOCKING_QUEUE, PRIORITY_BLOCKING_QUEUE, SYNCHRONOUS_QUEUE;
+    }
+
+
 }

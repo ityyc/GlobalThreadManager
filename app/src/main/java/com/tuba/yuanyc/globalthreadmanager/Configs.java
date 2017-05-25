@@ -3,7 +3,7 @@ package com.tuba.yuanyc.globalthreadmanager;
 /**
  * Author ：yuanyc
  * Time ：2017/3/4
- * Description ：静态常量类
+ * Description ：线程池的静态常量类
  */
 
 public class Configs {
@@ -28,5 +28,24 @@ public class Configs {
      * 创建的默认线程个数
      */
     public static final int THREAD_NUMBER = 6;
+
+    /**
+     * 默认的核心线程数量
+     */
+    public static final int THREAD_CORE_NUMBER = 5;
+    /**
+     * 默认的最大线程数量
+     */
+    public static final int THREAD_MAX_NUMBER = 10;
+    /**
+     * 默认的阻塞队列大小
+     */
+    public static final int THREAD_BLOCK_SIZE = 5;
+    /**
+     * 默认的空闲线程超时时间(默认是1000毫秒)
+     */
+    public static final int THREAD_IDLE_TIME_OUT = 1000;
+
+
 
 }
